@@ -46,6 +46,27 @@ var loadChecks = function(checksfile) {
     return JSON.parse(fs.readFileSync(checksfile));
 };
 
+var checkUrl = function(url, checksfile) {
+    rest.get(url).on('complete', function(result) {
+        if(result instanceof Error) {
+            sys.puts('Error: ' + result.message);
+            this.retry(5000);
+        }
+        else {
+            //sys.puts(result);
+            $ = cheerio.load(result);
+            var checks = loadChecks(program.checks);
+            var out = {};
+            for(var ii in checks) {
+                var present = $(checks[ii]).length > 0;
+                out[checks[ii]] = present;
+            }
+            var outJson = JSON.stringify(out, null, 4);
+            console.log(outJson);
+        }
+    });
+};
+
 var checkHtmlFile = function(htmlfile, checksfile) {
     $ = cheerioHtmlFile(htmlfile);
     var checks = loadChecks(checksfile).sort();
@@ -70,24 +91,7 @@ if(require.main == module) {
         .option('-u, --url <path_url>', 'Command line defined URL')
         .parse(process.argv);
     if(program.url != null) {
-        rest.get(program.url).on('complete', function(result) {
-            if(result instanceof Error) {
-                sys.puts('Error: ' + result.message);
-                this.retry(5000);
-            }
-            else {
-                //sys.puts(result);
-                $ = cheerio.load(result);
-                var checks = loadChecks(program.checks);
-                var out = {};
-                for(var ii in checks) {
-                    var present = $(checks[ii]).length > 0;
-                    out[checks[ii]] = present;
-                }
-                var outJson = JSON.stringify(out, null, 4);
-                console.log(outJson);
-            }
-        });
+        checkUrl(program.url, program.checks);
     }
     else {
         var checkJson = checkHtmlFile(program.file, program.checks);
